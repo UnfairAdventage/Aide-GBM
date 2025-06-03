@@ -7,9 +7,11 @@ Aplicación principal para el cálculo de criticalidad del gasto metabólico.
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                             QLabel, QLineEdit, QComboBox, QPushButton, QTableWidget,
-                            QTableWidgetItem, QSpinBox, QMessageBox, QTabWidget)
+                            QTableWidgetItem, QSpinBox, QMessageBox, QTabWidget,
+                            QFileDialog)
 from PyQt5.QtCore import Qt
 import numpy as np
+import pandas as pd
 from models.person import Person
 
 class MetabolicApp(QMainWindow):
@@ -38,53 +40,38 @@ class MetabolicApp(QMainWindow):
         input_tab = QWidget()
         input_layout = QVBoxLayout(input_tab)
         
-        # Formulario de datos personales
-        form_layout = QHBoxLayout()
+        # Tabla de datos personales y ejercicio
+        self.input_table = QTableWidget()
+        self.input_table.setRowCount(4)
+        self.input_table.setColumnCount(2)
+        self.input_table.setHorizontalHeaderLabels(['Campo', 'Valor'])
+        campos = ['Sexo (M/F)', 'Peso (kg)', 'Altura (cm)', 'Edad (años)']
+        for i, campo in enumerate(campos):
+            self.input_table.setItem(i, 0, QTableWidgetItem(campo))
+        self.input_table.setItem(0, 1, QTableWidgetItem('M'))
+        self.input_table.setItem(1, 1, QTableWidgetItem(''))
+        self.input_table.setItem(2, 1, QTableWidgetItem(''))
+        self.input_table.setItem(3, 1, QTableWidgetItem(''))
+        input_layout.addWidget(self.input_table)
         
-        # Sexo
-        sex_layout = QVBoxLayout()
-        sex_layout.addWidget(QLabel('Sexo:'))
-        self.sex_combo = QComboBox()
-        self.sex_combo.addItems(['M', 'F'])
-        sex_layout.addWidget(self.sex_combo)
-        form_layout.addLayout(sex_layout)
-        
-        # Peso
-        weight_layout = QVBoxLayout()
-        weight_layout.addWidget(QLabel('Peso (kg):'))
-        self.weight_input = QLineEdit()
-        weight_layout.addWidget(self.weight_input)
-        form_layout.addLayout(weight_layout)
-        
-        # Altura
-        height_layout = QVBoxLayout()
-        height_layout.addWidget(QLabel('Altura (cm):'))
-        self.height_input = QLineEdit()
-        height_layout.addWidget(self.height_input)
-        form_layout.addLayout(height_layout)
-        
-        # Edad
-        age_layout = QVBoxLayout()
-        age_layout.addWidget(QLabel('Edad (años):'))
-        self.age_input = QLineEdit()
-        age_layout.addWidget(self.age_input)
-        form_layout.addLayout(age_layout)
-        
-        input_layout.addLayout(form_layout)
-        
-        # Tabla de ejercicio
-        exercise_layout = QVBoxLayout()
-        exercise_layout.addWidget(QLabel('Minutos de ejercicio por día:'))
+        # Tabla de minutos de ejercicio por día
         self.exercise_table = QTableWidget()
         self.exercise_table.setColumnCount(1)
-        self.exercise_table.setHorizontalHeaderLabels(['Minutos'])
-        exercise_layout.addWidget(self.exercise_table)
-        input_layout.addLayout(exercise_layout)
+        self.exercise_table.setHorizontalHeaderLabels(['Minutos de ejercicio'])
+        self.exercise_table.setRowCount(5)
+        for i in range(5):
+            self.exercise_table.setItem(i, 0, QTableWidgetItem(''))
+        input_layout.addWidget(self.exercise_table)
         
-        # Botón para agregar días
+        # Botón para agregar día
         add_day_btn = QPushButton('Agregar Día')
         add_day_btn.clicked.connect(self.add_exercise_day)
         input_layout.addWidget(add_day_btn)
+        
+        # Botón para eliminar día
+        remove_day_btn = QPushButton('Eliminar Día')
+        remove_day_btn.clicked.connect(self.remove_exercise_day)
+        input_layout.addWidget(remove_day_btn)
         
         # Botón calcular
         calculate_btn = QPushButton('Calcular')
@@ -93,9 +80,16 @@ class MetabolicApp(QMainWindow):
         
         tabs.addTab(input_tab, "Datos de Entrada")
         
-        # Pestaña de resultados
-        results_tab = QWidget()
-        results_layout = QVBoxLayout(results_tab)
+        # Pestaña de resultados diarios
+        daily_tab = QWidget()
+        daily_layout = QVBoxLayout(daily_tab)
+        self.daily_table = QTableWidget()
+        daily_layout.addWidget(self.daily_table)
+        tabs.addTab(daily_tab, "Datos Diarios")
+        
+        # Pestaña de Fourier
+        fourier_tab = QWidget()
+        fourier_layout = QVBoxLayout(fourier_tab)
         
         # Selector de K
         k_layout = QHBoxLayout()
@@ -105,68 +99,87 @@ class MetabolicApp(QMainWindow):
         self.k_spin.setMaximum(100)
         self.k_spin.valueChanged.connect(self.update_fourier_table)
         k_layout.addWidget(self.k_spin)
-        results_layout.addLayout(k_layout)
+        fourier_layout.addLayout(k_layout)
         
-        # Tabla de resultados
-        self.results_table = QTableWidget()
-        results_layout.addWidget(self.results_table)
+        # Tabla de Fourier
+        self.fourier_table = QTableWidget()
+        fourier_layout.addWidget(self.fourier_table)
         
-        tabs.addTab(results_tab, "Resultados")
+        # Resumen de Fourier
+        self.fourier_summary = QTableWidget()
+        self.fourier_summary.setRowCount(1)
+        self.fourier_summary.setColumnCount(4)
+        self.fourier_summary.setHorizontalHeaderLabels([
+            'K', 'a_k', 'b_k', 'log10(K)'
+        ])
+        fourier_layout.addWidget(self.fourier_summary)
+        
+        tabs.addTab(fourier_tab, "Análisis de Fourier")
+        
+        # Pestaña de estadísticas
+        stats_tab = QWidget()
+        stats_layout = QVBoxLayout(stats_tab)
+        self.stats_table = QTableWidget()
+        stats_layout.addWidget(self.stats_table)
+        tabs.addTab(stats_tab, "Análisis Estadístico")
+        
+        # Botón exportar
+        export_btn = QPushButton('Exportar a Excel')
+        export_btn.clicked.connect(self.export_to_excel)
+        layout.addWidget(export_btn)
         
     def add_exercise_day(self):
-        """Agrega una nueva fila para ingresar minutos de ejercicio."""
         current_row = self.exercise_table.rowCount()
         self.exercise_table.insertRow(current_row)
-        
+        self.exercise_table.setItem(current_row, 0, QTableWidgetItem(''))
+
+    def remove_exercise_day(self):
+        current_row = self.exercise_table.rowCount()
+        if current_row > 1:
+            self.exercise_table.removeRow(current_row - 1)
+
     def calculate(self):
         """Realiza los cálculos y actualiza las tablas."""
         try:
-            # Obtener datos del formulario
-            sex = self.sex_combo.currentText()
-            weight = float(self.weight_input.text())
-            height = float(self.height_input.text())
-            age = int(self.age_input.text())
-            
-            # Obtener minutos de ejercicio
-            exercise_minutes = []
+            sexo = self.input_table.item(0, 1).text().strip()
+            peso = float(self.input_table.item(1, 1).text())
+            altura = float(self.input_table.item(2, 1).text())
+            edad = int(self.input_table.item(3, 1).text())
+            minutos = []
             for row in range(self.exercise_table.rowCount()):
                 item = self.exercise_table.item(row, 0)
-                if item and item.text():
-                    exercise_minutes.append(float(item.text()))
-                else:
-                    exercise_minutes.append(0.0)
+                if item and item.text().strip():
+                    minutos.append(float(item.text().strip()))
+            if not minutos:
+                raise ValueError('Debes ingresar al menos un día de ejercicio.')
+            self.person = Person(sexo, peso, altura, edad, minutos)
+            self.update_daily_table()
+            self.update_fourier_table()
+            self.update_stats_table()
+        except Exception as e:
+            QMessageBox.warning(self, 'Error', f'Error en los datos: {e}')
             
-            # Crear objeto Person
-            self.person = Person(sex, weight, height, age, exercise_minutes)
-            
-            # Actualizar tabla de resultados
-            self.update_results_table()
-            
-        except ValueError as e:
-            QMessageBox.warning(self, 'Error', 'Por favor, ingrese valores numéricos válidos.')
-            
-    def update_results_table(self):
-        """Actualiza la tabla de resultados con los cálculos."""
+    def update_daily_table(self):
+        """Actualiza la tabla de datos diarios."""
         if not self.person:
             return
             
+        daily_data = self.person.get_daily_data()
+        
         # Configurar tabla
-        self.results_table.setRowCount(len(self.person.exercise_minutes))
-        self.results_table.setColumnCount(5)
-        self.results_table.setHorizontalHeaderLabels([
-            'Día', 'Min. Ejercicio', 'TMB', 'AF', 'GB'
+        self.daily_table.setRowCount(len(daily_data))
+        self.daily_table.setColumnCount(5)
+        self.daily_table.setHorizontalHeaderLabels([
+            'Día', 'Ejercicio (min)', 'TMB', 'AF', 'GB'
         ])
         
         # Llenar datos
-        bmr = self.person.calculate_bmr()
-        daily_expenditure = self.person.calculate_daily_expenditure()
-        
-        for i, (minutes, gb) in enumerate(zip(self.person.exercise_minutes, daily_expenditure)):
-            self.results_table.setItem(i, 0, QTableWidgetItem(str(i + 1)))
-            self.results_table.setItem(i, 1, QTableWidgetItem(str(minutes)))
-            self.results_table.setItem(i, 2, QTableWidgetItem(f"{bmr:.2f}"))
-            self.results_table.setItem(i, 3, QTableWidgetItem(str(minutes)))
-            self.results_table.setItem(i, 4, QTableWidgetItem(f"{gb:.2f}"))
+        for i, data in enumerate(daily_data):
+            self.daily_table.setItem(i, 0, QTableWidgetItem(str(data['day'])))
+            self.daily_table.setItem(i, 1, QTableWidgetItem(f"{data['exercise']:.0f}"))
+            self.daily_table.setItem(i, 2, QTableWidgetItem(f"{data['tmb']:.3f}"))
+            self.daily_table.setItem(i, 3, QTableWidgetItem(f"{data['af']:.2f}"))
+            self.daily_table.setItem(i, 4, QTableWidgetItem(f"{data['gb']:.2f}"))
             
     def update_fourier_table(self):
         """Actualiza la tabla de coeficientes de Fourier."""
@@ -174,29 +187,100 @@ class MetabolicApp(QMainWindow):
             return
             
         k = self.k_spin.value()
+        fourier_data = self.person.get_fourier_table(k)
+        
+        # Configurar tabla
+        self.fourier_table.setRowCount(len(fourier_data))
+        self.fourier_table.setColumnCount(6)
+        self.fourier_table.setHorizontalHeaderLabels([
+            'n', 'x', 'cos', 'sin', 'x*cos', 'x*sin'
+        ])
+        
+        # Llenar datos
+        for i, data in enumerate(fourier_data):
+            self.fourier_table.setItem(i, 0, QTableWidgetItem(str(data['n'])))
+            self.fourier_table.setItem(i, 1, QTableWidgetItem(f"{data['x']:.2f}"))
+            self.fourier_table.setItem(i, 2, QTableWidgetItem(f"{data['cos']:.4f}"))
+            self.fourier_table.setItem(i, 3, QTableWidgetItem(f"{data['sin']:.4f}"))
+            self.fourier_table.setItem(i, 4, QTableWidgetItem(f"{data['x_cos']:.4f}"))
+            self.fourier_table.setItem(i, 5, QTableWidgetItem(f"{data['x_sin']:.4f}"))
+        
+        # Actualizar resumen
         a_k, b_k = self.person.calculate_fourier_coefficients(k)
+        self.fourier_summary.setItem(0, 0, QTableWidgetItem(str(k)))
+        self.fourier_summary.setItem(0, 1, QTableWidgetItem(f"{a_k:.4f}"))
+        self.fourier_summary.setItem(0, 2, QTableWidgetItem(f"{b_k:.4f}"))
+        self.fourier_summary.setItem(0, 3, QTableWidgetItem(f"{np.log10(k):.4f}"))
+            
+    def update_stats_table(self):
+        """Actualiza la tabla de análisis estadístico."""
+        if not self.person:
+            return
+            
+        stats = self.person.get_statistical_analysis()
         
-        # Crear nueva tabla para coeficientes de Fourier
-        fourier_table = QTableWidget()
-        fourier_table.setRowCount(1)
-        fourier_table.setColumnCount(4)
-        fourier_table.setHorizontalHeaderLabels([
-            'K', 'a_k', 'b_k', 'log10(K)'
+        # Configurar tabla
+        self.stats_table.setRowCount(1)
+        self.stats_table.setColumnCount(8)
+        self.stats_table.setHorizontalHeaderLabels([
+            'Media X', 'Media Y', 'Var X', 'Var Y',
+            'Correlación', 'Σxy', 'Σx²', 'Σy²'
         ])
         
-        fourier_table.setItem(0, 0, QTableWidgetItem(str(k)))
-        fourier_table.setItem(0, 1, QTableWidgetItem(f"{a_k:.4f}"))
-        fourier_table.setItem(0, 2, QTableWidgetItem(f"{b_k:.4f}"))
-        fourier_table.setItem(0, 3, QTableWidgetItem(f"{np.log10(k):.4f}"))
+        # Llenar datos
+        self.stats_table.setItem(0, 0, QTableWidgetItem(f"{stats.mean_x:.2f}"))
+        self.stats_table.setItem(0, 1, QTableWidgetItem(f"{stats.mean_y:.2f}"))
+        self.stats_table.setItem(0, 2, QTableWidgetItem(f"{stats.variance_x:.2f}"))
+        self.stats_table.setItem(0, 3, QTableWidgetItem(f"{stats.variance_y:.2f}"))
+        self.stats_table.setItem(0, 4, QTableWidgetItem(f"{stats.correlation:.4f}"))
+        self.stats_table.setItem(0, 5, QTableWidgetItem(f"{stats.xy_sum:.2f}"))
+        self.stats_table.setItem(0, 6, QTableWidgetItem(f"{stats.x2_sum:.2f}"))
+        self.stats_table.setItem(0, 7, QTableWidgetItem(f"{stats.y2_sum:.2f}"))
         
-        # Reemplazar la tabla actual
-        self.results_table.setRowCount(0)
-        self.results_table.setColumnCount(4)
-        self.results_table.setHorizontalHeaderLabels([
-            'K', 'a_k', 'b_k', 'log10(K)'
-        ])
-        
-        for col in range(4):
-            item = fourier_table.item(0, col)
-            if item:
-                self.results_table.setItem(0, col, QTableWidgetItem(item.text())) 
+    def export_to_excel(self):
+        """Exporta los datos a un archivo Excel."""
+        if not self.person:
+            QMessageBox.warning(self, 'Error', 'No hay datos para exportar.')
+            return
+            
+        try:
+            file_name, _ = QFileDialog.getSaveFileName(
+                self,
+                "Guardar archivo Excel",
+                "",
+                "Excel Files (*.xlsx)"
+            )
+            
+            if file_name:
+                # Crear DataFrame para datos diarios
+                daily_data = self.person.get_daily_data()
+                daily_df = pd.DataFrame(daily_data)
+                
+                # Crear DataFrame para Fourier
+                k = self.k_spin.value()
+                fourier_data = self.person.get_fourier_table(k)
+                fourier_df = pd.DataFrame(fourier_data)
+                
+                # Crear DataFrame para estadísticas
+                stats = self.person.get_statistical_analysis()
+                stats_df = pd.DataFrame([{
+                    'Media X': stats.mean_x,
+                    'Media Y': stats.mean_y,
+                    'Var X': stats.variance_x,
+                    'Var Y': stats.variance_y,
+                    'Correlación': stats.correlation,
+                    'Σxy': stats.xy_sum,
+                    'Σx²': stats.x2_sum,
+                    'Σy²': stats.y2_sum
+                }])
+                
+                # Crear Excel writer
+                with pd.ExcelWriter(file_name) as writer:
+                    daily_df.to_excel(writer, sheet_name='Datos Diarios', index=False)
+                    fourier_df.to_excel(writer, sheet_name='Fourier', index=False)
+                    stats_df.to_excel(writer, sheet_name='Estadísticas', index=False)
+                    
+                QMessageBox.information(self, 'Éxito', 'Datos exportados correctamente.')
+                
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Error al exportar: {str(e)}') 

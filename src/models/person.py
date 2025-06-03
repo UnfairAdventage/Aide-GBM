@@ -6,8 +6,15 @@ Modelo para almacenar y calcular datos personales relacionados con el gasto meta
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Dict, Tuple
 import numpy as np
+from utils.math_tools import (
+    calculate_activity_factor,
+    calculate_fourier_coefficients,
+    calculate_statistics,
+    calculate_fourier_table,
+    StatisticalAnalysis
+)
 
 @dataclass
 class Person:
@@ -31,6 +38,15 @@ class Person:
         else:
             return 447.593 + (9.247 * self.weight) + (3.098 * self.height) - (4.333 * self.age)
     
+    def calculate_activity_factors(self) -> List[float]:
+        """
+        Calcula los factores de actividad física para cada día.
+        
+        Returns:
+            List[float]: Lista de factores de actividad física
+        """
+        return [calculate_activity_factor(minutes) for minutes in self.exercise_minutes]
+    
     def calculate_daily_expenditure(self) -> List[float]:
         """
         Calcula el gasto bruto diario (GB) para cada día.
@@ -39,9 +55,10 @@ class Person:
             List[float]: Lista de gastos brutos diarios
         """
         bmr = self.calculate_bmr()
-        return [bmr + minutes for minutes in self.exercise_minutes]
+        activity_factors = self.calculate_activity_factors()
+        return [bmr * af for af in activity_factors]
     
-    def calculate_fourier_coefficients(self, k: int) -> tuple:
+    def calculate_fourier_coefficients(self, k: int) -> Tuple[float, float]:
         """
         Calcula los coeficientes de Fourier para una frecuencia k dada.
         
@@ -51,14 +68,51 @@ class Person:
         Returns:
             tuple: (a_k, b_k) coeficientes de Fourier
         """
-        n = len(self.exercise_minutes)
-        if n == 0:
-            return 0.0, 0.0
+        return calculate_fourier_coefficients(self.calculate_daily_expenditure(), k)
+    
+    def get_daily_data(self) -> List[Dict[str, float]]:
+        """
+        Obtiene los datos diarios en formato de diccionario.
+        
+        Returns:
+            List[Dict[str, float]]: Lista de diccionarios con datos diarios
+        """
+        bmr = self.calculate_bmr()
+        activity_factors = self.calculate_activity_factors()
+        daily_expenditure = self.calculate_daily_expenditure()
+        
+        return [
+            {
+                'day': i + 1,
+                'exercise': minutes,
+                'tmb': bmr,
+                'af': af,
+                'gb': gb
+            }
+            for i, (minutes, af, gb) in enumerate(zip(
+                self.exercise_minutes,
+                activity_factors,
+                daily_expenditure
+            ))
+        ]
+    
+    def get_fourier_table(self, k: int) -> List[Dict[str, float]]:
+        """
+        Genera la tabla de cálculos de Fourier.
+        
+        Args:
+            k (int): Frecuencia para el cálculo
             
-        x_n = np.array(self.calculate_daily_expenditure())
-        n_array = np.arange(1, n + 1)
+        Returns:
+            List[Dict[str, float]]: Tabla de cálculos de Fourier
+        """
+        return calculate_fourier_table(self.calculate_daily_expenditure(), k)
+    
+    def get_statistical_analysis(self) -> StatisticalAnalysis:
+        """
+        Realiza el análisis estadístico entre ejercicio y gasto bruto.
         
-        a_k = (2/n) * np.sum(x_n * np.cos(2 * np.pi * k * n_array / n))
-        b_k = (2/n) * np.sum(x_n * np.sin(2 * np.pi * k * n_array / n))
-        
-        return a_k, b_k 
+        Returns:
+            StatisticalAnalysis: Resultados del análisis estadístico
+        """
+        return calculate_statistics(self.exercise_minutes, self.calculate_daily_expenditure()) 

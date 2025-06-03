@@ -10,6 +10,8 @@ Esta aplicación de escritorio permite calcular la criticalidad del gasto metab�
 - Tablas interactivas para visualización de resultados
 - Cálculo de coeficientes de Fourier para diferentes valores de K
 - Análisis estadístico básico
+- **Ingreso de datos personales y minutos de ejercicio en tablas editables**
+- **Agregar o eliminar días de ejercicio dinámicamente**
 
 ## Requisitos
 
@@ -46,10 +48,11 @@ python src/main.py
 ```
 
 2. En la interfaz:
-   - Ingrese los datos personales (sexo, peso, altura, edad)
-   - Agregue los minutos de ejercicio diarios usando el botón "Agregar Día"
-   - Haga clic en "Calcular" para ver los resultados
-   - Use el selector de K para ver diferentes coeficientes de Fourier
+   - Ingrese los datos personales (sexo, peso, altura, edad) en la tabla superior.
+   - Ingrese los minutos de ejercicio para cada día en la tabla inferior.
+   - Use el botón "Agregar Día" para añadir más días o "Eliminar Día" para quitarlos.
+   - Haga clic en "Calcular" para ver los resultados.
+   - Use el selector de K para ver diferentes coeficientes de Fourier.
 
 ## Estructura del Proyecto
 
@@ -61,6 +64,8 @@ proyecto_criticalidad/
 │   ├── app.py                  # Clase principal de la aplicación
 │   ├── models/
 │   │   └── person.py          # Modelo de datos personales
+│   ├── utils/
+│   │   └── math_tools.py      # Herramientas matemáticas
 │
 ├── requirements.txt
 └── README.md
@@ -78,6 +83,16 @@ TMB = 88.362 + (13.397 * peso) + (4.799 * altura) - (5.677 * edad)
 Para mujeres:
 ```
 TMB = 447.593 + (9.247 * peso) + (3.098 * altura) - (4.333 * edad)
+```
+
+### AF (Actividad Física)
+```
+AF = 1.2 + 0.01 * (minutos de ejercicio)
+```
+
+### GB (Gasto Bruto Diario)
+```
+GB = TMB * AF
 ```
 
 ### Transformada de Fourier
@@ -100,4 +115,6 @@ Las contribuciones son bienvenidas. Por favor, asegúrese de:
 
 ## Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles. 
+Este proyecto está bajo la Licencia Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International.  
+Consulta el archivo `LICENSE` para más detalles o visita:  
+https://creativecommons.org/licenses/by-nc-nd/4.0/ 
