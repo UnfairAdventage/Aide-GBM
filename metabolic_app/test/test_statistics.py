@@ -62,9 +62,15 @@ def test_calculate_correlation_coefficient():
     x_values = [1, 2, 3, 4, 5]
     y_values = [2, 4, 5, 4, 5]
     N = len(x_values)
-    # Expected value calculated using a standard statistical tool or formula
-    # For these values, the correlation coefficient should be close to 0.866
-    expected_r = 0.8660254037844387
+    # Expected value calculated manually:
+    # x_mean = 3, y_mean = 4
+    # x_diff = [-2, -1, 0, 1, 2]
+    # y_diff = [-2, 0, 1, 0, 1]
+    # covariance = (4 + 0 + 0 + 0 + 2) / 5 = 1.2
+    # x_std = sqrt(10/5) = sqrt(2)
+    # y_std = sqrt(6/5)
+    # r = 1.2 / (sqrt(2) * sqrt(6/5)) ≈ 0.7746
+    expected_r = 0.7745966692414833
     assert calculate_correlation_coefficient(x_values, y_values, N) == pytest.approx(expected_r)
 
 def test_calculate_correlation_coefficient_zero_std_dev():

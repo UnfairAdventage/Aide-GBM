@@ -88,31 +88,36 @@ def calculate_regression_intercept(x_values: list[float], y_values: list[float],
     return C
 
 def calculate_correlation_coefficient(x_values: list[float], y_values: list[float], N: int) -> float:
-    """Calculates the Pearson correlation coefficient (r).
-
+    """
+    Calcula el coeficiente de correlación entre dos conjuntos de datos.
+    
     Args:
-        x_values: A list of x-values.
-        y_values: A list of y-values.
-        N: The number of data points.
-
+        x_values: Lista de valores x
+        y_values: Lista de valores y
+        N: Número total de puntos
+        
     Returns:
-        The calculated correlation coefficient (r).
-
+        float: Coeficiente de correlación
+        
     Raises:
-        ValueError: If the number of data points is less than 2 or if the lengths of x_values and y_values do not match N.
-        ZeroDivisionError: If the standard deviation of x or y is zero.
+        ZeroDivisionError: Si la desviación estándar de x o y es cero
     """
     if N < 2 or len(x_values) != N or len(y_values) != N:
         raise ValueError("Invalid input: N must be at least 2, and list lengths must match N")
 
-    mean_x = calculate_mean(x_values)
-    mean_y = calculate_mean(y_values)
-    std_dev_x = calculate_std_dev(x_values, mean_x)
-    std_dev_y = calculate_std_dev(y_values, mean_y)
-
-    if std_dev_x == 0 or std_dev_y == 0:
+    x_mean = calculate_mean(x_values)
+    y_mean = calculate_mean(y_values)
+    
+    # Calculate standard deviations
+    x_std_sum = sum((x - x_mean) ** 2 for x in x_values)
+    y_std_sum = sum((y - y_mean) ** 2 for y in y_values)
+    
+    # Check for zero standard deviation
+    if x_std_sum == 0 or y_std_sum == 0:
         raise ZeroDivisionError("Standard deviation of x or y is zero, cannot calculate correlation coefficient.")
-
-    sum_xy = sum([x * y for x, y in zip(x_values, y_values)])
-    r = (sum_xy / N - mean_x * mean_y) / (std_dev_x * std_dev_y)
-    return r 
+    
+    # Calculate covariance (divide by N)
+    covariance = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_values, y_values)) / N
+    
+    # Calculate correlation coefficient
+    return covariance / (math.sqrt(x_std_sum / N) * math.sqrt(y_std_sum / N)) 

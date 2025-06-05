@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: metabolic_app
+Version: 0.1.0
+Summary: Aplicación de análisis metabólico
+Requires-Python: >=3.8
