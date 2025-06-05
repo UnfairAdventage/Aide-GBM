@@ -1,0 +1,6 @@
+numpy
+pandas
+matplotlib
+pytest
+pyqt5    # Si utilizas PyQt5
+pyside6  # Si utilizas PySide6 
