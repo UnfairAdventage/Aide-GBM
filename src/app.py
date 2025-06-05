@@ -8,8 +8,9 @@ Aplicación principal para el cálculo de criticalidad del gasto metabólico.
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                             QLabel, QLineEdit, QComboBox, QPushButton, QTableWidget,
                             QTableWidgetItem, QSpinBox, QMessageBox, QTabWidget,
-                            QFileDialog)
+                            QFileDialog, QTextEdit)
 from PyQt5.QtCore import Qt
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 import numpy as np
 import pandas as pd
 from models.person import Person
@@ -114,6 +115,17 @@ class MetabolicApp(QMainWindow):
         ])
         fourier_layout.addWidget(self.fourier_summary)
         
+        # Tabla de resumen de Fourier (todas las K)
+        self.fourier_full_summary = QTableWidget()
+        fourier_layout.addWidget(self.fourier_full_summary)
+        
+        # Área para mostrar la fórmula y sustitución en LaTeX renderizado
+        self.fourier_formula_view = QWebEngineView()
+        fourier_layout.addWidget(self.fourier_formula_view)
+        # Tabla de log10(K) vs log10(Ak)
+        self.log_table = QTableWidget()
+        fourier_layout.addWidget(self.log_table)
+        
         tabs.addTab(fourier_tab, "Análisis de Fourier")
         
         # Pestaña de estadísticas
@@ -185,32 +197,77 @@ class MetabolicApp(QMainWindow):
         """Actualiza la tabla de coeficientes de Fourier."""
         if not self.person:
             return
-            
         k = self.k_spin.value()
         fourier_data = self.person.get_fourier_table(k)
-        
         # Configurar tabla
         self.fourier_table.setRowCount(len(fourier_data))
         self.fourier_table.setColumnCount(6)
         self.fourier_table.setHorizontalHeaderLabels([
             'n', 'x', 'cos', 'sin', 'x*cos', 'x*sin'
         ])
-        
         # Llenar datos
         for i, data in enumerate(fourier_data):
             self.fourier_table.setItem(i, 0, QTableWidgetItem(str(data['n'])))
             self.fourier_table.setItem(i, 1, QTableWidgetItem(f"{data['x']:.2f}"))
             self.fourier_table.setItem(i, 2, QTableWidgetItem(f"{data['cos']:.4f}"))
             self.fourier_table.setItem(i, 3, QTableWidgetItem(f"{data['sin']:.4f}"))
-            self.fourier_table.setItem(i, 4, QTableWidgetItem(f"{data['x_cos']:.4f}"))
-            self.fourier_table.setItem(i, 5, QTableWidgetItem(f"{data['x_sin']:.4f}"))
-        
+            self.fourier_table.setItem(i, 4, QTableWidgetItem(f"{data['x_cos']:.2f}"))
+            self.fourier_table.setItem(i, 5, QTableWidgetItem(f"{data['x_sin']:.2f}"))
         # Actualizar resumen
-        a_k, b_k = self.person.calculate_fourier_coefficients(k)
+        a_k, b_k, Ak, log10_Ak = self.person.calculate_fourier_coefficients(k)
+        self.fourier_summary.setRowCount(1)
+        self.fourier_summary.setColumnCount(5)
+        self.fourier_summary.setHorizontalHeaderLabels([
+            'K', 'a_k', 'b_k', 'Ak', 'log10(Ak)'
+        ])
         self.fourier_summary.setItem(0, 0, QTableWidgetItem(str(k)))
         self.fourier_summary.setItem(0, 1, QTableWidgetItem(f"{a_k:.4f}"))
         self.fourier_summary.setItem(0, 2, QTableWidgetItem(f"{b_k:.4f}"))
-        self.fourier_summary.setItem(0, 3, QTableWidgetItem(f"{np.log10(k):.4f}"))
+        self.fourier_summary.setItem(0, 3, QTableWidgetItem(f"{Ak:.4f}"))
+        self.fourier_summary.setItem(0, 4, QTableWidgetItem(f"{log10_Ak:.4f}"))
+        # Proceso completo para todos los K (tabla resumen en HTML con MathJax)
+        N = len(self.person.calculate_daily_expenditure())
+        table_rows = []
+        for k_val in range(1, N+1):
+            a_k_val, b_k_val, Ak_val, log10_Ak_val = self.person.calculate_fourier_coefficients(k_val)
+            row = f"""
+<tr>
+<td> {k_val} </td>
+<td> $${{a_{{{k_val}}} = {a_k_val:.4f}}}$$ </td>
+<td> $${{b_{{{k_val}}} = {b_k_val:.4f}}}$$ </td>
+<td> $${{A_{{{k_val}}} = {Ak_val:.4f}}}$$ </td>
+<td> $${{\log_{{10}}({k_val}) = {np.log10(k_val):.4f}}}$$ </td>
+<td> $${{\log_{{10}}(A_{{{k_val}}}) = {log10_Ak_val:.4f}}}$$ </td>
+</tr>
+"""
+            table_rows.append(row)
+        table_html = f"""
+<table border='1' cellpadding='6' style='border-collapse:collapse;'>
+<tr>
+<th>K</th><th>a_k</th><th>b_k</th><th>A_k</th><th>log10(K)</th><th>log10(Ak)</th>
+</tr>
+{''.join(table_rows)}
+</table>
+"""
+        html = f"""
+<html><head>
+<script src='https://polyfill.io/v3/polyfill.min.js?features=es6'></script>
+<script src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>
+<style>body {{ font-family: Arial; font-size: 16px; }}</style>
+</head><body>
+{table_html}
+</body></html>
+"""
+        self.fourier_formula_view.setHtml(html)
+        # Tabla de log10(K) vs log10(Ak) para K=1..N
+        self.log_table.setRowCount(N)
+        self.log_table.setColumnCount(3)
+        self.log_table.setHorizontalHeaderLabels(['K', 'log10(K)', 'log10(Ak)'])
+        for k_val in range(1, N+1):
+            _, _, Ak_k, log10_Ak_k = self.person.calculate_fourier_coefficients(k_val)
+            self.log_table.setItem(k_val-1, 0, QTableWidgetItem(str(k_val)))
+            self.log_table.setItem(k_val-1, 1, QTableWidgetItem(f"{np.log10(k_val):.4f}"))
+            self.log_table.setItem(k_val-1, 2, QTableWidgetItem(f"{log10_Ak_k:.4f}"))
             
     def update_stats_table(self):
         """Actualiza la tabla de análisis estadístico."""

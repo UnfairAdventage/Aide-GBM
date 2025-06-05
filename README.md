@@ -95,13 +95,19 @@ AF = 1.2 + 0.01 * (minutos de ejercicio)
 GB = TMB * AF
 ```
 
-### Transformada de Fourier
+### Coeficientes de Fourier
 
-Para una serie X_n:
-```
-a_k = (2/N) * Σ(X_n * cos(2πkn/N))
-b_k = (2/N) * Σ(X_n * sin(2πkn/N))
-```
+$$
+a_k = \frac{2}{n} \sum_{n=1}^{N} x_n \cos\left(2 \pi k \frac{n}{n}\right)
+$$
+$$
+b_k = \frac{2}{n} \sum_{n=1}^{N} x_n \sin\left(2 \pi k \frac{n}{n}\right)
+$$
+
+N = Número de días
+n = Número de día
+k = Índice de coeficiente de Fourier
+
 
 ## Contribuir
 

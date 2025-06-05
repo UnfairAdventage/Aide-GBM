@@ -58,15 +58,13 @@ class Person:
         activity_factors = self.calculate_activity_factors()
         return [bmr * af for af in activity_factors]
     
-    def calculate_fourier_coefficients(self, k: int) -> Tuple[float, float]:
+    def calculate_fourier_coefficients(self, k: int) -> Tuple[float, float, float, float]:
         """
         Calcula los coeficientes de Fourier para una frecuencia k dada.
-        
         Args:
             k (int): Frecuencia para el cálculo
-            
         Returns:
-            tuple: (a_k, b_k) coeficientes de Fourier
+            tuple: (a_k, b_k, Ak, log10_Ak) coeficientes de Fourier
         """
         return calculate_fourier_coefficients(self.calculate_daily_expenditure(), k)
     
